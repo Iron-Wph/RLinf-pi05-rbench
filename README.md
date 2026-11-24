@@ -5,6 +5,25 @@ maintains the RLinf v0.4 base at `2348ece3` and adds the RBench dataset loader,
 OpenPI transforms, and SFT recipes. See [the upstream introduction](#upstream-rlinf)
 below for general RLinf usage.
 
+## RLinf and OpenPI configuration
+
+| What to change | File |
+| --- | --- |
+| 32-GPU training settings, task list, batch size, optimizer, and checkpoints | [rbench_sft_openpi_pi05_32gpu_60k.yaml](examples/sft/config/rbench_sft_openpi_pi05_32gpu_60k.yaml) |
+| Single-GPU training settings | [rbench_sft_openpi_pi05.yaml](examples/sft/config/rbench_sft_openpi_pi05.yaml) |
+| Shared π0.5 model and FSDP defaults imported by the recipes | [pi0_5.yaml](examples/sft/config/model/pi0_5.yaml) and [openpi_fsdp.yaml](examples/sft/config/hybrid_engines/openpi_fsdp.yaml) |
+| OpenPI `pi05_rbench` registration and model settings | [dataconfig/__init__.py](rlinf/models/embodiment/openpi/dataconfig/__init__.py) |
+| Camera and state field mapping, relative joint actions, and model transforms | [rbench_dataconfig.py](rlinf/models/embodiment/openpi/dataconfig/rbench_dataconfig.py) |
+| Mixed LeRobot loading and task-local language lookup | [rbench.py](rlinf/data/datasets/openpi/rbench.py) |
+
+The training YAML selects `actor.model.openpi.config_name: pi05_rbench`.
+RLinf resolves that name through its OpenPI config registry and selects the
+RBench loader. The 32-GPU YAML also sets
+`actor.model.openpi_data.norm_stats_path` from `RBENCH_NORM_STATS`.
+Both the YAML and Python registration specify a 10-step action window and
+32 model action dimensions. Keep these settings aligned with the data
+transforms and normalization statistics when changing the action format.
+
 ## 1. Install and prepare inputs
 
 On all training nodes, use the same checkout and a matching Linux/CUDA
