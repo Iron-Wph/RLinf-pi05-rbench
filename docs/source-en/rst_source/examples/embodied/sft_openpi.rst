@@ -209,6 +209,19 @@ Custom LeRobot dataset
    ``rlinf/models/embodiment/openpi/dataconfig/franka_dataconfig.py`` to
    your keys and action space.
 
+RBench mixed LeRobot dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use ``rbench_sft_openpi_pi05.yaml`` with the ``pi05_rbench`` data config. List
+each local LeRobot task directory in ``data.train_data_paths``. Task indices
+are resolved within each directory before the samples are combined.
+
+RBench uses two RGB views, state tokens, a 10-step window, seven relative
+joint angles and absolute gripper width. Set ``actor.model.openpi_data.norm_stats_path``
+to the stats for that mixture and action representation. Each task must have
+complete language labels. Point ``actor.model.model_path`` to a compatible
+converted Pi0.5 base checkpoint.
+
 Normalization statistics
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

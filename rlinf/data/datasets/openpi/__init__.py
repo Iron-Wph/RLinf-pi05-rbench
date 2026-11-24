@@ -75,6 +75,12 @@ def build_openpi_sft_dataloader(
             cfg, world_size, rank, data_paths, eval_dataset
         )
 
+    if cfg.actor.model.openpi.config_name == "pi05_rbench":
+        from rlinf.data.datasets.openpi.rbench import build_rbench_sft_dataloader
+
+        return build_rbench_sft_dataloader(
+            cfg, world_size, rank, data_paths, eval_dataset
+        )
     env_type = _resolve_env(str(cfg.actor.model.openpi.config_name))
     builder = _SFT_DATALOADER_BUILDERS[env_type]()
     return builder(cfg, world_size, rank, data_paths, eval_dataset)

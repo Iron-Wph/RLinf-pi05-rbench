@@ -64,6 +64,9 @@ from rlinf.models.embodiment.openpi.dataconfig.metaworld_dataconfig import (
 from rlinf.models.embodiment.openpi.dataconfig.polaris_dataconfig import (
     LeRobotPolarisDroidDataConfig,
 )
+from rlinf.models.embodiment.openpi.dataconfig.rbench_dataconfig import (
+    LeRobotRBenchDataConfig,
+)
 from rlinf.models.embodiment.openpi.dataconfig.realworld_dataconfig import (
     LeRobotRealworldDataConfig,
 )
@@ -75,6 +78,27 @@ from rlinf.models.embodiment.openpi.dataconfig.robotwin_aloha_dataconfig import 
 )
 
 _CONFIGS = [
+    TrainConfig(
+        name="pi05_rbench",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=10,
+            discrete_state_input=True,
+        ),
+        data=LeRobotRBenchDataConfig(repo_id="rbench-pi05-mixed-v1"),
+        # Reference values for the 32-GPU recipe. RLinf uses the run YAML.
+        batch_size=256,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=10_000,
+            peak_lr=5e-5,
+            decay_steps=70_000,
+            decay_lr=5e-5,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        num_train_steps=70_000,
+    ),
     TrainConfig(
         name="pi0_libero",
         model=pi0_config.Pi0Config(),

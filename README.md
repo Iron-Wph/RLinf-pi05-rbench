@@ -1,3 +1,97 @@
+# RLinf π0.5 × RBench
+
+Train π0.5 on the 33-task RBench single-arm LeRobot mixture. This checkout
+maintains the RLinf v0.4 base at `2348ece3` and adds the RBench dataset loader,
+OpenPI transforms, and SFT recipes. See [the upstream introduction](#upstream-rlinf)
+below for general RLinf usage.
+
+## 1. Install and prepare inputs
+
+On all training nodes, use the same checkout and a matching Linux/CUDA
+environment. Follow the [OpenPI SFT installation and conversion guide](docs/source-en/rst_source/examples/embodied/sft_openpi.rst).
+
+```bash
+bash requirements/install.sh embodied --model openpi --env maniskill_libero
+source .venv/bin/activate
+```
+
+Prepare these inputs on storage accessible by all Ray nodes:
+
+- **Demonstrations.** Use LeRobot v2.1, one dataset directory per task under a
+  common root. The [32-GPU YAML](examples/sft/config/rbench_sft_openpi_pi05_32gpu_60k.yaml)
+  lists the 33 directories. Each task must supply its own `meta/tasks.jsonl`
+  with episode language already mapped to the corresponding Parquet
+  `task_index`. The loader resolves language within each task before joining
+  samples. Each sample supplies `image`, `wrist_image`, `state`, and `actions`.
+- **Normalization.** Download RBench's [norm_stats.json](https://huggingface.co/EDuoLong/single_arm_ckpt_vla_sft/blob/97484a169996fecf0487415b8b144575b819f769/pi05_6w_sft/norm_stats.json).
+  For a changed mixture or action representation, compute statistics on the
+  corresponding transformed data. The joint targets become offsets from the
+  window's initial joint state, and gripper width remains absolute.
+- **Initialization.** Use the official OpenPI `pi05_base` JAX checkpoint.
+  Convert it with the linked guide's `jax_to_openpi` command, using
+  `--action-dim 32 --action-horizon 10 --max-token-len 200` and the RBench
+  normalization file. Point the recipe at the resulting model directory.
+  The released 60k SFT weights are a separate artifact.
+
+```bash
+export RBENCH_DATASET_ROOT=/path/to/rbench-pi05-v21
+export RBENCH_BASE_MODEL=/path/to/pi05_base_rlinf
+export RBENCH_NORM_STATS=/path/to/norm_stats.json
+export RBENCH_LOG_ROOT=/path/to/shared/training-output
+```
+
+## 2. Start Ray on four 8-GPU nodes
+
+Activate the same environment on each node. On the head node, set
+`HEAD_IP` to its reachable cluster address and start Ray:
+
+```bash
+RLINF_NODE_RANK=0 ray start --head --node-ip-address="$HEAD_IP" --port=6379
+```
+
+On each worker, set the same `HEAD_IP` and assign `NODE_RANK` a unique
+integer from 1 through 3:
+
+```bash
+RLINF_NODE_RANK="$NODE_RANK" ray start --address="$HEAD_IP:6379"
+```
+
+## 3. Train or resume
+
+From the checkout on the Ray head, launch inside tmux if you need to
+disconnect. Use a fresh run directory for launcher logs and a new
+`RBENCH_LOG_ROOT` or experiment name for independent experiments:
+
+```bash
+bash examples/sft/run_rbench_pi05_32gpu_60k.sh \
+  /path/to/run-dir /path/to/venv "$HEAD_IP"
+```
+
+To continue an interrupted run, append
+`runner.resume_dir=/path/to/checkpoints/global_step_N` to that command.
+Use the full checkpoint directory containing the Ray/PyTorch distributed
+training state. The launcher accepts additional Hydra overrides after the
+three positional arguments.
+
+The recipe uses 60,000 optimizer steps, global batch 256, micro-batch 4,
+two accumulation passes, and saves every 1,000 steps. It uses two RGB
+views and a 10-step window with eight robot action dimensions padded to 32
+for the model. The 10,000-step learning-rate warmup ends at 5e-5, which
+remains constant. Launcher output is in `RUN_DIR/train.log`. The recipe
+writes checkpoints and TensorBoard events under `RBENCH_LOG_ROOT`.
+
+For a single GPU, use the [single-GPU configuration](examples/sft/config/rbench_sft_openpi_pi05.yaml)
+with `bash examples/sft/run_vla_sft.sh rbench_sft_openpi_pi05`.
+That launcher creates its own output directory under `logs/`.
+
+## Released checkpoint
+
+The private [pi05_6w_sft directory](https://huggingface.co/EDuoLong/single_arm_ckpt_vla_sft/tree/97484a169996fecf0487415b8b144575b819f769/pi05_6w_sft)
+contains `full_weights.pt` and its matching `norm_stats.json`. Access
+requires permission to the Hugging Face repository.
+
+## Upstream RLinf
+
 <div align="center">
   <img src="https://github.com/RLinf/misc/raw/main/pic/logo_white.svg" alt="RLinf-logo" width="600"/>
 </div>
